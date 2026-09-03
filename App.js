@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -8,28 +9,37 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import DashboardScreen from './src/screens/DashboardScreen';
 import DevicesScreen from './src/screens/DevicesScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
-import { font, theme } from './src/theme';
+import { font, themes } from './src/theme';
 
 const Stack = createNativeStackNavigator();
 
-function AppHeader({ back, navigation, options }) {
+function AppHeader({ back, colors, navigation, options }) {
   return (
-    <SafeAreaView edges={['top']} style={styles.headerSafe}>
-      <View style={styles.header}>
+    <SafeAreaView edges={['top']} style={[styles.headerSafe, { backgroundColor: colors.header }]}>
+      <View
+        style={[
+          styles.header,
+          {
+            backgroundColor: colors.header,
+            borderBottomColor: colors.headerShadow,
+          },
+        ]}
+      >
         {back ? (
           <Pressable
             accessibilityLabel="Go back"
+            accessibilityRole="button"
             onPress={navigation.goBack}
             style={({ pressed }) => [
               styles.backButton,
               pressed && styles.pressed,
             ]}
           >
-            <Ionicons name="arrow-back" size={28} color={theme.ink} />
+            <Ionicons name="arrow-back" size={28} color={colors.ink} />
           </Pressable>
         ) : null}
 
-        <Text style={[styles.headerTitle, !back && styles.homeHeaderTitle]}>
+        <Text style={[styles.headerTitle, { color: colors.ink }, !back && styles.homeHeaderTitle]}>
           {options.title}
         </Text>
       </View>
@@ -38,32 +48,67 @@ function AppHeader({ back, navigation, options }) {
 }
 
 export default function App() {
+  const [lightOn, setLightOn] = useState(true);
+  const [temperature, setTemperature] = useState(26);
+  const [temperatureUnit, setTemperatureUnit] = useState('°C');
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [doorLocked, setDoorLocked] = useState(true);
+  const [cameraOn, setCameraOn] = useState(true);
+
+  const colors = lightOn ? themes.light : themes.dark;
+
+  const appState = useMemo(
+    () => ({
+      cameraOn,
+      colors,
+      doorLocked,
+      lightOn,
+      notificationsEnabled,
+      temperature,
+      temperatureUnit,
+      decreaseTemperature: () => setTemperature((current) => Math.max(16, current - 1)),
+      increaseTemperature: () => setTemperature((current) => Math.min(32, current + 1)),
+      setNotificationsEnabled,
+      toggleCamera: () => setCameraOn((current) => !current),
+      toggleDoor: () => setDoorLocked((current) => !current),
+      toggleLight: () => setLightOn((current) => !current),
+      toggleTemperatureUnit: () =>
+        setTemperatureUnit((currentUnit) => (currentUnit === '°C' ? '°F' : '°C')),
+    }),
+    [
+      cameraOn,
+      colors,
+      doorLocked,
+      lightOn,
+      notificationsEnabled,
+      temperature,
+      temperatureUnit,
+    ],
+  );
+
   return (
     <SafeAreaProvider>
-      <StatusBar style="dark" backgroundColor={theme.header} />
+      <StatusBar style={lightOn ? 'dark' : 'light'} backgroundColor={colors.header} />
       <NavigationContainer>
         <Stack.Navigator
           initialRouteName="Dashboard"
           screenOptions={{
-            contentStyle: styles.screenContent,
-            header: (props) => <AppHeader {...props} />,
+            contentStyle: { backgroundColor: colors.background },
+            header: (props) => <AppHeader {...props} colors={colors} />,
           }}
         >
           <Stack.Screen
             name="Dashboard"
-            component={DashboardScreen}
             options={{ title: 'Smart Home' }}
-          />
-          <Stack.Screen
-            name="Settings"
-            component={SettingsScreen}
-            options={{ title: 'Settings' }}
-          />
-          <Stack.Screen
-            name="Devices"
-            component={DevicesScreen}
-            options={{ title: 'Settings' }}
-          />
+          >
+            {(props) => <DashboardScreen {...props} {...appState} />}
+          </Stack.Screen>
+          <Stack.Screen name="Settings" options={{ title: 'Settings' }}>
+            {(props) => <SettingsScreen {...props} {...appState} />}
+          </Stack.Screen>
+          <Stack.Screen name="Devices" options={{ title: 'Devices' }}>
+            {(props) => <DevicesScreen {...props} {...appState} />}
+          </Stack.Screen>
         </Stack.Navigator>
       </NavigationContainer>
     </SafeAreaProvider>
@@ -72,13 +117,13 @@ export default function App() {
 
 const styles = StyleSheet.create({
   headerSafe: {
-    backgroundColor: theme.header,
+    backgroundColor: themes.light.header,
   },
   header: {
     height: 72,
     alignItems: 'center',
-    backgroundColor: theme.header,
-    borderBottomColor: theme.headerShadow,
+    backgroundColor: themes.light.header,
+    borderBottomColor: themes.light.headerShadow,
     borderBottomWidth: 1,
     flexDirection: 'row',
     shadowColor: '#000',
@@ -98,7 +143,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   headerTitle: {
-    color: theme.ink,
+    color: themes.light.ink,
     fontFamily: font.family,
     fontSize: 25,
     fontWeight: '900',
@@ -106,8 +151,5 @@ const styles = StyleSheet.create({
   },
   homeHeaderTitle: {
     marginLeft: 22,
-  },
-  screenContent: {
-    backgroundColor: theme.background,
   },
 });
